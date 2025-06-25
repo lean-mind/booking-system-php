@@ -6,7 +6,7 @@ namespace LeanMind\Libraries\DB;
 
 use RuntimeException;
 
-final class EntityManager
+class EntityManager
 {
 
     /**

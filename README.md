@@ -91,3 +91,10 @@ Your task is to refactor the `BookingController` to adhere to the principles of 
 Dependency Inversion Principle (DIP), allowing for easier testing and maintenance.
 
 Provide tests to ensure the functionality of the refactored code.
+
+## Test Double
+
+A test double is a generic term for any case where you replace a production object for testing purposes.
+
+Some examples are provided in [tests folder](tests/Example) using Manual test doubles for Mocks, Stubs, and Spies; and
+another example using a Mocking Framework, [Mockery](https://docs.mockery.io/en/stable/).

@@ -41,13 +41,13 @@ class BookingController extends Controller
         );
 
         if (empty($booking)) {
-            throw new RuntimeException("Booking with ID $bookingId not found.");
+            throw new NotFoundBookingException($bookingId);
         }
 
         match (strtolower($paymentMethod)) {
             'redsys' => $this->redsysClient->processPayment($booking),
             'stripe' => $this->stripeClient->processPayment($booking),
-            default => throw new RuntimeException("Unsupported payment method: $paymentMethod"),
+            default => throw new UnsupportedPaymentMethodException($paymentMethod),
         };
 
         // Here you would typically update the booking status to 'paid' or similar

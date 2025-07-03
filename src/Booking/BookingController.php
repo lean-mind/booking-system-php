@@ -9,6 +9,7 @@ use LeanMind\Framework\Controller;
 use LeanMind\Libraries\DB\EntityManager;
 use LeanMind\Libraries\Redsys\RedsysClient;
 use LeanMind\Libraries\Stripe\StripeClient;
+use Throwable;
 
 /**
  * `BookingController` handles booking-related operations.
@@ -37,30 +38,49 @@ class BookingController extends Controller
      */
     function pay(string $bookingId, string $paymentMethod): array
     {
-        $booking = $this->entityManager->query(
-            'SELECT * FROM bookings WHERE id = :id',
-            ['id' => $bookingId]
-        );
+        try {
+            $booking = $this->entityManager->query(
+                'SELECT * FROM bookings WHERE id = :id',
+                ['id' => $bookingId]
+            );
 
-        if (empty($booking)) {
-            throw new RuntimeException("Booking with ID $bookingId not found.");
+            if (empty($booking)) {
+                throw new NotFoundBookingException($bookingId);
+            }
+
+            match (strtolower($paymentMethod)) {
+                'redsys' => $this->redsysClient->processPayment($booking),
+                'stripe' => $this->stripeClient->processPayment($booking),
+                default => throw new UnsupportedPaymentMethodException($paymentMethod),
+            };
+
+            // Here you would typically update the booking status to 'paid' or similar
+            $this->entityManager->execute(
+                'UPDATE bookings SET status = :status, payment_method = :payment_method WHERE id = :id',
+                ['status' => 'paid', 'payment_method' => $paymentMethod, 'id' => $bookingId]
+            );
+
+            return [
+                'status' => 200,
+                'message' => "Payment for booking $bookingId processed successfully using $paymentMethod.",
+            ];
+        } catch (NotFoundBookingException $e) {
+            return [
+                'status' => 404,
+                'message' => $e->getMessage(),
+            ];
+        } catch (UnsupportedPaymentMethodException $e) {
+            return [
+                'status' => 400,
+                'message' => $e->getMessage(),
+            ];
+        } catch (Throwable $e) {
+            // Log the unexpected error
+            print "Error: " . $e->getMessage();
+            return [
+                'status' => 500,
+                'message' => "An error occurred while processing the payment",
+            ];
         }
-
-        match (strtolower($paymentMethod)) {
-            'redsys' => $this->redsysClient->processPayment($booking),
-            'stripe' => $this->stripeClient->processPayment($booking),
-            default => throw new RuntimeException("Unsupported payment method: $paymentMethod"),
-        };
-
-        // Here you would typically update the booking status to 'paid' or similar
-        $this->entityManager->execute(
-            'UPDATE bookings SET status = :status, payment_method = :payment_method WHERE id = :id',
-            ['status' => 'paid', 'payment_method' => $paymentMethod, 'id' => $bookingId]
-        );
-
-        return [
-            'status' => 200,
-            'message' => "Payment for booking $bookingId processed successfully using $paymentMethod."
-        ];
     }
 }
